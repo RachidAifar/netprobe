@@ -2,14 +2,14 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: netprobe
 resources:
-  - ../../base
+- ../../base
 components:
-  - ../../components/monitoring
+- ../../components/monitoring
 replicas:
-  - name: netprobe
-    count: 1
+- count: 1
+  name: netprobe
 # CI updates this tag after every successful build on main (GitOps).
 images:
-  - name: netprobe
-    newName: ghcr.io/rachidaifar/netprobe
-    newTag: latest
+- name: netprobe
+  newName: ghcr.io/rachidaifar/netprobe
+  newTag: 2bc0b647ac79afdebab76c192e25b8c7bddf5820
