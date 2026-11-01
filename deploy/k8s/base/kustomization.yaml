@@ -16,4 +16,3 @@ configMapGenerator:
   - name: netprobe-targets
     files:
       - targets.yaml
-
