@@ -17,13 +17,13 @@ env:
 jobs:
   test:
     name: Lint and unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -35,10 +35,10 @@ jobs:
 
   validate:
     name: Validate infrastructure code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install linters
@@ -64,7 +64,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/monitoring/prometheus:/p:ro" --entrypoint promtool \
             prom/prometheus:v3.5.0 check config /p/prometheus.yml
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.12.2
       - name: Terraform fmt and validate
@@ -76,9 +76,9 @@ jobs:
 
   ansible:
     name: Ansible playbook (runs twice to prove idempotence)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: pipx install ansible-core==2.21.5
       - name: First run installs the tools
         working-directory: infra/ansible
@@ -91,10 +91,10 @@ jobs:
 
   image:
     name: Build, scan and smoke-test the image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
       - name: Build
         uses: docker/build-push-action@v6
@@ -120,10 +120,10 @@ jobs:
 
   e2e:
     name: Deploy to a kind cluster
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test, validate]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: helm/kind-action@v1
         with:
           cluster_name: netprobe
@@ -148,25 +148,27 @@ jobs:
           kubectl -n netprobe rollout status deployment/netprobe --timeout=120s
       - name: Check the service from inside the cluster
         run: |
-          kubectl -n netprobe run curl --rm -i --restart=Never --image=curlimages/curl:8.15.0 -- \
-            sh -c 'curl -fs http://netprobe/ready && curl -fs http://netprobe/targets'
+          # --command: the curl image's entrypoint is curl itself, so run sh explicitly.
+          kubectl -n netprobe run curl --rm -i --restart=Never --image=curlimages/curl:8.15.0 --command -- \
+            sh -c 'curl -fsS http://netprobe/ready && curl -fsS http://netprobe/targets'
       - name: Show state on failure
         if: failure()
         run: |
           kubectl -n netprobe get all
+          kubectl -n netprobe get events --sort-by=.lastTimestamp
           kubectl -n netprobe describe pods
-          kubectl -n netprobe logs deployment/netprobe --tail=100
+          kubectl -n netprobe logs deployment/netprobe --tail=100 || true
 
   publish:
     name: Publish image and update GitOps manifest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [image, e2e, ansible]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
