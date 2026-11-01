@@ -16,7 +16,4 @@ configMapGenerator:
   - name: netprobe-targets
     files:
       - targets.yaml
-images:
-  - name: netprobe
-    newName: ghcr.io/rachidaifar/netprobe
-    newTag: latest
+

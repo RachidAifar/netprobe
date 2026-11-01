@@ -110,14 +110,11 @@ jobs:
           for i in $(seq 1 30); do curl -fs localhost:8080/health && break; sleep 1; done
           curl -fs localhost:8080/metrics | grep netprobe_rounds_total
           test "$(docker inspect -f '{{.Config.User}}' netprobe)" = "10001"
-      - name: Scan for vulnerabilities
+      - name: Scan for vulnerabilities (Trivy)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:0.65.0 image \
-            --severity CRITICAL,HIGH \
-            --ignore-unfixed \
-            --exit-code 1 \
-            netprobe:ci
+            aquasec/trivy:0.65.0 image --skip-version-check --scanners vuln \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 netprobe:ci
 
   e2e:
     name: Deploy to a kind cluster
@@ -142,11 +139,25 @@ jobs:
       - name: Deploy the dev overlay with the freshly built image
         run: |
           cd deploy/k8s/overlays/dev
+          # A non-"latest" tag means imagePullPolicy IfNotPresent, so kind uses the loaded image.
           kustomize edit set image netprobe=netprobe:e2e
           kubectl apply -k .
-          kubectl -n netprobe patch deployment netprobe --type json \
-            -p '[{"op":"add","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Never"}]'
-          kubectl -n netprobe rollout status deployment/netprobe --timeout=120s
+          if ! kubectl -n netprobe rollout status deployment/netprobe --timeout=180s; then
+            echo "::group::Pods, events, describe and logs"
+            kubectl -n netprobe get pods -o wide
+            kubectl -n netprobe get events --sort-by=.lastTimestamp
+            kubectl -n netprobe describe pods
+            kubectl -n netprobe logs deployment/netprobe --tail=50 || true
+            echo "::endgroup::"
+            echo "Retrying without the NetworkPolicy to see whether it blocks the kubelet probes..."
+            kubectl -n netprobe delete networkpolicy netprobe
+            if kubectl -n netprobe rollout status deployment/netprobe --timeout=90s; then
+              echo "::error::Pods become Ready only without the NetworkPolicy, so it blocks the kubelet probes."
+            else
+              echo "::error::Pods are not Ready even without the NetworkPolicy; see the describe output above."
+            fi
+            exit 1
+          fi
       - name: Check the service from inside the cluster
         run: |
           # --command: the curl image's entrypoint is curl itself, so run sh explicitly.

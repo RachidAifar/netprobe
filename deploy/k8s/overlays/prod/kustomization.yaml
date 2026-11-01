@@ -6,6 +6,10 @@ resources:
   - hpa.yaml
 components:
   - ../../components/monitoring
+images:
+  - name: netprobe
+    newName: ghcr.io/rachidaifar/netprobe
+    newTag: latest
 patches:
   - target:
       kind: Deployment
