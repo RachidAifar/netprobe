@@ -1,0 +1,86 @@
+---
+# Prepares an Ubuntu/Debian machine to run this project: Docker, kubectl, kind and Terraform.
+#   ansible-playbook bootstrap.yml --ask-become-pass
+# Safe to run repeatedly: a second run should report no changes.
+- name: Bootstrap a NetProbe workstation
+  hosts: workstations
+  become: true
+
+  pre_tasks:
+    - name: Check the operating system is supported
+      ansible.builtin.assert:
+        that: ansible_facts['os_family'] == "Debian"
+        fail_msg: "This playbook supports Ubuntu and Debian only."
+
+  tasks:
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: [ca-certificates, curl, git, gnupg, python3]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Check whether Docker is already installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Docker from the distribution packages
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2]
+        state: present
+      when: docker_check.rc != 0
+
+    - name: Allow users to run Docker without sudo
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop: "{{ docker_users }}"
+      when: item != "root"
+
+    - name: Add the Kubernetes apt repository
+      ansible.builtin.deb822_repository:
+        name: kubernetes
+        uris: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/"
+        suites: /
+        signed_by: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/Release.key"
+        install_python_debian: true
+
+    - name: Add the HashiCorp apt repository
+      ansible.builtin.deb822_repository:
+        name: hashicorp
+        uris: https://apt.releases.hashicorp.com
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: main
+        signed_by: https://apt.releases.hashicorp.com/gpg
+        install_python_debian: true
+
+    - name: Install kubectl and Terraform
+      ansible.builtin.apt:
+        name: [kubectl, terraform]
+        state: present
+        update_cache: true
+
+    - name: Install kind
+      ansible.builtin.get_url:
+        url: "https://github.com/kubernetes-sigs/kind/releases/download/{{ kind_version }}/kind-linux-amd64"
+        checksum: "sha256:https://github.com/kubernetes-sigs/kind/releases/download/{{ kind_version }}/kind-linux-amd64.sha256sum"
+        dest: /usr/local/bin/kind
+        mode: "0755"
+
+  post_tasks:
+    - name: Read installed tool versions
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - docker --version
+        - kubectl version --client
+        - kind version
+        - terraform version
+      register: versions
+      changed_when: false
+
+    - name: Show installed tool versions
+      ansible.builtin.debug:
+        msg: "{{ versions.results | map(attribute='stdout_lines') | map('first') | list }}"

@@ -1,0 +1,31 @@
+groups:
+  - name: netprobe
+    rules:
+      - alert: TargetDown
+        expr: netprobe_target_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.target }} ({{ $labels.type }}) is down"
+          description: "The {{ $labels.type }} probe for {{ $labels.target }} has failed for 2 minutes."
+          runbook: "docs/RUNBOOK.md#targetdown"
+
+      - alert: TargetSlow
+        expr: |
+          histogram_quantile(0.95, sum by (target, type, le) (rate(netprobe_probe_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.target }} is slow (p95 above 1 s)"
+          runbook: "docs/RUNBOOK.md#targetslow"
+
+      - alert: NetProbeNotRunning
+        expr: absent(up{job="netprobe"} == 1)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus cannot scrape NetProbe"
+          runbook: "docs/RUNBOOK.md#netprobenotrunning"

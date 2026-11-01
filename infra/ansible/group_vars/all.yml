@@ -1,0 +1,5 @@
+---
+kubernetes_minor_version: "v1.33"
+kind_version: "v0.29.0"
+docker_users:
+  - "{{ ansible_user_id }}"

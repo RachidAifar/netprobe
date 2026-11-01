@@ -1,0 +1,21 @@
+# GitOps: Argo CD keeps the cluster in sync with deploy/k8s/overlays/dev on main.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: netprobe
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/RachidAifar/netprobe.git
+    targetRevision: main
+    path: deploy/k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: netprobe
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

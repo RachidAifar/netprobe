@@ -1,0 +1,16 @@
+# Inside the cluster NetProbe also checks the cluster's own networking.
+interval_seconds: 15
+timeout_seconds: 5
+targets:
+  - name: kubernetes-api
+    type: tcp
+    address: kubernetes.default.svc:443
+  - name: cluster-dns
+    type: dns
+    address: kubernetes.default.svc.cluster.local
+  - name: example-web
+    type: http
+    address: https://example.com
+  - name: public-dns-tcp
+    type: tcp
+    address: 1.1.1.1:53

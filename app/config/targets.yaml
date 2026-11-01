@@ -1,0 +1,13 @@
+# Targets checked every interval. Types: http (URL), tcp (host:port), dns (hostname).
+interval_seconds: 15
+timeout_seconds: 5
+targets:
+  - name: example-web
+    type: http
+    address: https://example.com
+  - name: cloudflare-dns-tcp
+    type: tcp
+    address: 1.1.1.1:53
+  - name: google-dns-lookup
+    type: dns
+    address: google.com

@@ -1,0 +1,7 @@
+profile: production
+exclude_paths:
+  - .github/
+  - deploy/
+  - monitoring/
+  - compose.yaml
+  - compose.elk.yaml

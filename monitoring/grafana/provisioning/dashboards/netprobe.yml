@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: netprobe
+    folder: NetProbe
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
