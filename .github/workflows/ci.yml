@@ -111,12 +111,13 @@ jobs:
           curl -fs localhost:8080/metrics | grep netprobe_rounds_total
           test "$(docker inspect -f '{{.Config.User}}' netprobe)" = "10001"
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          image-ref: netprobe:ci
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.65.0 image \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --exit-code 1 \
+            netprobe:ci
 
   e2e:
     name: Deploy to a kind cluster
