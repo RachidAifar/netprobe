@@ -111,7 +111,7 @@ jobs:
           curl -fs localhost:8080/metrics | grep netprobe_rounds_total
           test "$(docker inspect -f '{{.Config.User}}' netprobe)" = "10001"
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: netprobe:ci
           severity: CRITICAL,HIGH
